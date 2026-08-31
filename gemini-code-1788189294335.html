@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Budget Dashboard & AI Advisor</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 5px; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        input, select, button {
+            padding: 10px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        input, select { flex: 1; min-width: 140px; }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        .btn-ai {
+            background-color: #7c3aed;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th { background-color: #f1f5f9; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-box {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.05);
+            text-align: center;
+        }
+
+        .summary-box h4 { margin: 0 0 5px 0; color: #64748b; font-size: 13px; }
+        .summary-box span { font-size: 18px; font-weight: bold; }
+
+        .ai-response {
+            background: #f5f3ff;
+            border-left: 4px solid #7c3aed;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 0 8px 8px 0;
+            white-space: pre-line;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Smart Budget Dashboard</h1>
+        <p>Control financiar complet cu cele 20 de categorii și asistent AI</p>
+    </header>
+
+    <!-- Configurare API Key -->
+    <div class="card">
+        <h3>Configurare AI (Google Gemini Free)</h3>
+        <div class="form-group">
+            <input type="password" id="apiKey" placeholder="Introdu Gemini API Key..." />
+            <button onclick="saveApiKey()">Salvează</button>
+        </div>
+        <small>Cheie gratuită de pe <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.</small>
+    </div>
+
+    <!-- Panou Sumar Financiar -->
+    <div class="summary-grid">
+        <div class="summary-box">
+            <h4>Sold Precedent</h4>
+            <span id="prevBalanceDisplay" style="color: var(--primary);">0.00 lei</span>
+        </div>
+        <div class="summary-box">
+            <h4>Venituri Totale</h4>
+            <span id="totalIncomeDisplay" style="color: var(--success);">0.00 lei</span>
+        </div>
+        <div class="summary-box">
+            <h4>Total Disponibil</h4>
+            <span id="totalAvailableDisplay">0.00 lei</span>
+        </div>
+        <div class="summary-box">
+            <h4>Total Cheltuieli</h4>
+            <span id="totalExpensesDisplay" style="color: var(--danger);">0.00 lei</span>
+        </div>
+        <div class="summary-box">
+            <h4>Sold Final</h4>
+            <span id="finalBalanceDisplay">0.00 lei</span>
+        </div>
+    </div>
+
+    <!-- Setare Sold Precedent -->
+    <div class="card">
+        <h3>Setează Sold Precedent & Venituri</h3>
+        <div class="form-group">
+            <input type="number" id="prevBalanceInput" placeholder="Sold precedent (lei)" onchange="updatePrevBalance()" />
+            <input type="text" id="incDesc" placeholder="Descriere venit (ex: Salariu)" />
+            <input type="number" id="incAmount" placeholder="Sumă venit (lei)" />
+            <button onclick="addIncome()">Adaugă Venit</button>
+        </div>
+    </div>
+
+    <!-- Adăugare Cheltuială pe Categorii -->
+    <div class="card">
+        <h3>Adaugă Cheltuială</h3>
+        <div class="form-group">
+            <input type="text" id="expDesc" placeholder="Detalii (opțional)" />
+            <input type="number" id="expAmount" placeholder="Sumă (lei)" />
+            <select id="expCategory">
+                <!-- Cele 20 de categorii alfabetic -->
+                <option value="Abonamente & Software">Abonamente & Software</option>
+                <option value="Alimente">Alimente</option>
+                <option value="Apă și Canal">Apă și Canal</option>
+                <option value="Asigurări">Asigurări</option>
+                <option value="Cadouri">Cadouri</option>
+                <option value="Chirie / Rată ipotecară">Chirie / Rată ipotecară</option>
+                <option value="Digi">Digi</option>
+                <option value="Diverse / Imprevizibile">Diverse / Imprevizibile</option>
+                <option value="Divertisment">Divertisment</option>
+                <option value="Donații">Donații</option>
+                <option value="Educație">Educație</option>
+                <option value="Electrică">Electrică</option>
+                <option value="Gaze Naturale">Gaze Naturale</option>
+                <option value="Sănătate și Farmacie">Sănătate și Farmacie</option>
+                <option value="Telefonie Mobilă">Telefonie Mobilă</option>
+                <option value="Transport / Combustibil">Transport / Combustibil</option>
+                <option value="Vacanțe și Concedii">Vacanțe și Concedii</option>
+                <option value="Îmbrăcăminte și Încălțăminte">Îmbrăcăminte și Încălțăminte</option>
+                <option value="Îngrijire Personală">Îngrijire Personală</option>
+                <option value="Întreținere Bloc">Întreținere Bloc</option>
+            </select>
+            <button onclick="addExpense()">Adaugă Cheltuială</button>
+        </div>
+    </div>
+
+    <!-- Tabel Detaliat Lunar vs Anual pe Categorii -->
+    <div class="card">
+        <h3>Calcul Categoriilor: Sumă Lunară vs. Total Anual</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Categorie Cheltuială</th>
+                    <th>Sumă Lunară (RON)</th>
+                    <th>Total Anual (RON)</th>
+                </tr>
+            </thead>
+            <tbody id="categoryTableBody">
+                <!-- Generat dinamic prin JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Istoric și AI Advisor -->
+    <div class="card">
+        <h3>Istoric Tranzacții & Asistent AI</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tip / Categorie</th>
+                    <th>Descriere</th>
+                    <th>Sumă</th>
+                    <th>Acțiune</th>
+                </tr>
+            </thead>
+            <tbody id="transactionList"></tbody>
+        </table>
+
+        <button class="btn-ai" onclick="askAI()">Cere Analiză Financiară de la AI 🤖</button>
+        <div id="aiOutput" class="ai-response" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+    const categories = [
+        "Abonamente & Software", "Alimente", "Apă și Canal", "Asigurări", "Cadouri", 
+        "Chirie / Rată ipotecară", "Digi", "Diverse / Imprevizibile", "Divertisment", 
+        "Donații", "Educație", "Electrică", "Gaze Naturale", "Sănătate și Farmacie", 
+        "Telefonie Mobilă", "Transport / Combustibil", "Vacanțe și Concedii", 
+        "Îmbrăcăminte și Încălțăminte", "Îngrijire Personală", "Întreținere Bloc"
+    ];
+
+    let prevBalance = parseFloat(localStorage.getItem('prevBalance')) || 0;
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+    window.onload = () => {
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if(savedKey) document.getElementById('apiKey').value = savedKey;
+        document.getElementById('prevBalanceInput').value = prevBalance;
+        renderApp();
+    };
+
+    function saveApiKey() {
+        const key = document.getElementById('apiKey').value;
+        if(key) {
+            localStorage.setItem('gemini_api_key', key);
+            alert('Cheie salvată!');
+        }
+    }
+
+    function updatePrevBalance() {
+        prevBalance = parseFloat(document.getElementById('prevBalanceInput').value) || 0;
+        localStorage.setItem('prevBalance', prevBalance);
+        renderApp();
+    }
+
+    function addIncome() {
+        const desc = document.getElementById('incDesc').value || 'Venit';
+        const amount = parseFloat(document.getElementById('incAmount').value);
+        if (isNaN(amount)) return alert('Introdu o sumă validă!');
+
+        transactions.push({ id: Date.now(), type: 'income', category: 'Venit', desc, amount });
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        document.getElementById('incDesc').value = '';
+        document.getElementById('incAmount').value = '';
+        renderApp();
+    }
+
+    function addExpense() {
+        const desc = document.getElementById('expDesc').value || 'Cheltuială';
+        const amount = parseFloat(document.getElementById('expAmount').value);
+        const category = document.getElementById('expCategory').value;
+        if (isNaN(amount)) return alert('Introdu o sumă validă!');
+
+        transactions.push({ id: Date.now(), type: 'expense', category, desc, amount });
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        document.getElementById('expDesc').value = '';
+        document.getElementById('expAmount').value = '';
+        renderApp();
+    }
+
+    function deleteTransaction(id) {
+        transactions = transactions.filter(t => t.id !== id);
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        renderApp();
+    }
+
+    function renderApp() {
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        
+        // Calcul pe categorii pentru tabelul lunar/anual
+        let catTotals = {};
+        categories.forEach(c => catTotals[c] = 0);
+
+        transactions.forEach(t => {
+            if(t.type === 'income') {
+                totalIncome += t.amount;
+            } else {
+                totalExpenses += t.amount;
+                if(catTotals[t.category] !== undefined) {
+                    catTotals[t.category] += t.amount;
+                }
+            }
+        });
+
+        const totalAvailable = prevBalance + totalIncome;
+        const finalBalance = totalAvailable - totalExpenses;
+
+        // Afișare sumare
+        document.getElementById('prevBalanceDisplay').innerText = prevBalance.toFixed(2) + ' lei';
+        document.getElementById('totalIncomeDisplay').innerText = totalIncome.toFixed(2) + ' lei';
+        document.getElementById('totalAvailableDisplay').innerText = totalAvailable.toFixed(2) + ' lei';
+        document.getElementById('totalExpensesDisplay').innerText = totalExpenses.toFixed(2) + ' lei';
+        
+        const finalEl = document.getElementById('finalBalanceDisplay');
+        finalEl.innerText = finalBalance.toFixed(2) + ' lei';
+        finalEl.style.color = finalBalance >= 0 ? 'var(--success)' : 'var(--danger)';
+
+        // Rrandare tabel categorii (Lunar vs Anual)
+        const catTableBody = document.getElementById('categoryTableBody');
+        catTableBody.innerHTML = '';
+        let sumMonthly = 0;
+        let sumAnnual = 0;
+
+        categories.forEach(cat => {
+            const monthly = catTotals[cat];
+            const annual = monthly * 12;
+            sumMonthly += monthly;
+            sumAnnual += annual;
+
+            catTableBody.innerHTML += `
+                <tr>
+                    <td><strong>${cat}</strong></td>
+                    <td>${monthly.toFixed(2)} lei</td>
+                    <td>${annual.toFixed(2)} lei</td>
+                </tr>
+            `;
+        });
+
+        // Randare rând total general în tabelul de categorii
+        catTableBody.innerHTML += `
+            <tr style="background: #f1f5f9; font-weight: bold;">
+                <td>TOTAL GENERAL</td>
+                <td>${sumMonthly.toFixed(2)} lei</td>
+                <td>${sumAnnual.toFixed(2)} lei</td>
+            </tr>
+        `;
+
+        // Randare istoric tranzacții
+        const list = document.getElementById('transactionList');
+        list.innerHTML = '';
+        transactions.forEach(t => {
+            list.innerHTML += `
+                <tr>
+                    <td>${t.type === 'income' ? '🟢 Venit' : '🔴 ' + t.category}</td>
+                    <td>${t.desc}</td>
+                    <td style="color: ${t.type === 'income' ? 'var(--success)' : 'var(--danger)'}">
+                        ${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)} lei
+                    </td>
+                    <td><button style="background:var(--danger); padding:4px 8px; font-size:12px;" onclick="deleteTransaction(${t.id})">Șterge</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    async function askAI() {
+        const apiKey = localStorage.getItem('gemini_api_key');
+        if (!apiKey) return alert('Introdu mai întâi cheia API!');
+
+        const aiOutput = document.getElementById('aiOutput');
+        aiOutput.style.display = 'block';
+        aiOutput.innerText = 'AI-ul analizează bugetul...';
+
+        const prompt = `Analizează datele financiare ale utilizatorului: Sold precedent: ${prevBalance}, Tranzacții: ${JSON.stringify(transactions)}. Oferă 3 sfaturi practice și prietenoase în limba română pentru optimizarea cheltuielilor pe aceste categorii.`;
+
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await response.json();
+            aiOutput.innerText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Eroare la răspunsul AI.';
+        } catch (e) {
+            aiOutput.innerText = 'Eroare de conexiune.';
+        }
+    }
+</script>
+
+</body>
+</html>
